@@ -1,13 +1,13 @@
 /*
 Reading Program for the 23A1024 SRAM Chips.
 
-To be used for the reading of ten SRAMs. Use a 70% square wave PWM with 5s period.
+To be used for the reading of one 1024K SRAM as though it were sixteen 64K SRAMs. Use a 70% square wave PWM with 5s period.
 
 Author: Gaines Odom
 Advisor: Ujjwal Guin
 Institution: Auburn University
 Created: 2/5/2024
-Revised: 2/5/2024
+Revised: 2/6/2024
 
 */
 
@@ -47,23 +47,27 @@ int create_and_change_directory(const char *dir_name) {
             return 1; // error making directory
         }
     } else {
+		chdir(dir_name);
         return 0;
     }
 }
 
 
 
+
 void chip_on(void)
 {
-	
-	snprintf(dir_name,sizeof(dir_name),"chip_segment_%d",chip_seg);
-	if (s % 100==1)
-	{
-		if(create_and_change_directory(dir_name)!=0) //needs snprintf
+	uint8_t read_byte;
+	chip_seg=1;
+    while (chip_seg <= 16) {
+		chdir(main_dir);
+		snprintf(dir_name,sizeof(dir_name),"chip_segment_%d",chip_seg);
+		if (s % 100==1)
+		{
+			if(create_and_change_directory(dir_name)!=0) 
 				printf("Important error: error with creating new directory. Stop and check for errors.");
-	}
-	
-    if (chip_seg <= 16) {
+		}
+		
         printf("Starting Read %d for Segment %d... ", s, chip_seg);
 
         snprintf(file_name, sizeof(file_name), "chip_segment_%d_%d.csv", chip_seg, s);
@@ -73,28 +77,23 @@ void chip_on(void)
 		
 		for (address_idx = chip_seg*SPI23X640_MAX_ADDRESS - SPI23X640_MAX_ADDRESS; address_idx < chip_seg*SPI23X640_MAX_ADDRESS; address_idx++) {
 			//printf("%x\n", address_idx);
-			uint8_t read_byte;
 			read_byte = spi_mem_read_byte(address_idx);
 			fprintf(file, "%05" PRIx32 ",%02" PRIx8 "\n", address_idx, read_byte);
 		}
-	
+		chip_seg++;
         fclose(file);
         printf("Done!\n");
     }
-    else 
-    {
+	
     printf("Completely Done!\n");
-}
-s++;
-        if (s == 101)
-        {
-            spi_mem_close();
-			chip_seg++;
-			spi_mem_init(5000000);
-			s=1;
-			chdir(main_dir);
-			
-        }
+	s++;
+	
+	if (s == 101)
+	{
+		spi_mem_close();			
+		spi_mem_init(15000000);
+		s=1;			
+	}
 }
 
 
@@ -105,7 +104,7 @@ int main()
     mkdir(date, 0777);
     chdir(date);
 	getcwd(main_dir, sizeof(main_dir));
-    spi_mem_init(5000000);
+    spi_mem_init(15000000);
 
     if (wiringPiSetup() == -1) {
         printf("WiringPi initialization failed.\n");
